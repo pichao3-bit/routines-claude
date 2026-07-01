@@ -1,0 +1,43 @@
+name: Veille BODACC + RSS
+
+on:
+  schedule:
+    # 05:00 UTC = 07:00 heure d'été (Paris). GitHub ne gère pas le changement
+    # d'heure : ça deviendra 06:00 heure d'hiver après le passage à l'heure
+    # d'hiver. À ajuster manuellement si besoin (ou laisser, 1h d'écart n'est
+    # pas gênant pour une veille).
+    - cron: '0 5 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  veille:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du repo
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Lancer la veille BODACC + RSS
+        run: |
+          python veille_bodacc_rss.py --lookback-days 3 \
+            --out-json veille_output.json \
+            --out-text veille_digest.txt
+
+      - name: Envoyer le digest par email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "Veille juridique/économique - 84/30/13"
+          to: pichao3@gmail.com
+          from: Veille Transition
+          body: file://veille_digest.txt
